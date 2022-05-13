@@ -55,6 +55,7 @@ heading = NORTH # Current heading
 sides_status = []
 check_sides = []
 node_cntr = 1
+unx_cntr = 0
 
 io = pigpio.pi()
 if __name__ == "__main__":
@@ -119,14 +120,14 @@ if __name__ == "__main__":
                 else:
                    drivingConditions = False
                    motor.set(0.7, 0.7)
-                   time.sleep(0.5)
+                   time.sleep(0.4)
 
             # seeing an intersection. We check the past values and not the
             #current ones so that the bot has extra time to move forward
             elif past_left == 1 and past_right == 1 and past_mid == 1:
                 drivingConditions = False
                 motor.set(0.7,0.7)
-                time.sleep(0.5)
+                time.sleep(0.4)
 
            # elif past_left == 0 and past_right == 0 and past_mid =
             else:
@@ -146,22 +147,26 @@ if __name__ == "__main__":
         global sees
         global node_cntr
         global node_cntr
+        not_seen = False
         for x in range(4):
-           motor.set(-0.8,0.8)
-           time.sleep(0.1)
+           if not_seen == False:
+                motor.set(-0.8,0.8)
+                time.sleep(0.1)
            sees = False
            acceptingCal = True
            start_time = io.get_current_tick()
            checks.append(True)
            while sees == False: # and hasn't hit 100 deg
-                if (io.get_current_tick() - start_time) > 500000:
-                    #print('100 deg!')
+                if (io.get_current_tick() - start_time) > 650000:
+                    print('100 deg!')
                     checks[x+1] = False
+                    not_seen = True
+                    
                     break #sees = True
                 motor.set(-0.8, 0.8)
                 #print(f"slept for turn{x}.")
                 time.sleep(0.05)
-           time.sleep(0.03)
+           #time.sleep(0.03)
            sees = False
            motor.set(0,0)
            time.sleep(1)
@@ -176,6 +181,7 @@ if __name__ == "__main__":
         global acceptingCal
         if acceptingCal == True:
            sees = True
+           not_seen = False
  
     def checkbehavior(motor):
            right_val = io.read(IR_R)
@@ -266,7 +272,7 @@ if __name__ == "__main__":
 
             # update previous intersection as connected
             if lastintersection != None:
-                print("adding back and last back as connected")
+                #print("adding back and last back as connected")
                             # sets current intersection back to connected
                 intersection(long,lat).streets[(heading+2) % 4] = CONNECTED
                 intersection(lastintersection[0],lastintersection[1]).streets[heading] = CONNECTED
@@ -308,21 +314,29 @@ if __name__ == "__main__":
                 turn((choice2 - heading) % 4)
                     
                 heading = choice2
+            for x in intersections:
+                if UNEXPLORED in x.streets:
+                    unx_cntr = unx_cntr + 1
+                    
             
             # update after  first
             lastintersection = [long,lat]
             print(lastintersection)
-            
+
+            if unx_cntr ==0:
+                stop_condition = False
+
+        print("EVERYTHING MAPPED") 
           # once exit loop, drive back to start
         motor.set(0,0)
         time.sleep(1)
-        for y in range(4):
+        '''for y in range(4):
             cint = intersection(long,lat)
             turn((cint.headingToTarget - heading) % 4)
             print(cint.headingToTarget)
             drivebehavior(motor)
             heading = (cint.headingToTarget) % 4
-            (long, lat) = shift(long,lat,heading)
+            (long, lat) = shift(long,lat,heading)'''
             
             
         print('done')
