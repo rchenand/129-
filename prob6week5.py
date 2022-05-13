@@ -5,8 +5,6 @@ Created on Tue May  3 13:54:13 2022
 @author: 18123
 """
 
-# code as of 5/12/22
-
 # Imports
 import pigpio
 import sys
@@ -265,15 +263,12 @@ if __name__ == "__main__":
                 print(f"streets: {intersection(long,lat).streets}")
             
             
-            
-
-
-            # sets current intersection back to connected
-            intersection(long,lat).streets[(heading+2) % 4] = CONNECTED
 
             # update previous intersection as connected
             if lastintersection != None:
-                print("adding back as connected")
+                print("adding back and last back as connected")
+                            # sets current intersection back to connected
+                intersection(long,lat).streets[(heading+2) % 4] = CONNECTED
                 intersection(lastintersection[0],lastintersection[1]).streets[heading] = CONNECTED
             # connects opposing street if not first intersection
            # global lastintersection
