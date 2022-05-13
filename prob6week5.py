@@ -206,11 +206,11 @@ if __name__ == "__main__":
         if mag == 1:
             while sees == False:
                 motor.set(-0.8, 0.8)
-                time.sleep(0.1)
+                time.sleep(0.05)
         elif mag == 3:
             while sees == False:
                 motor.set(0.8, -0.8)
-                time.sleep(0.1)
+                time.sleep(0.05)
         elif mag == 0:
             motor.set(0,0)
 
@@ -305,13 +305,14 @@ if __name__ == "__main__":
                 choice2 = random.choice(connected_streets)
                 #print(connected_streets)
                 #print("turning to a connected")
-                turn(random.choice(connected_streets))
+                turn((choice2 - heading) % 4)
                     
                 heading = choice2
             
             # update after  first
             lastintersection = [long,lat]
             print(lastintersection)
+            
           # once exit loop, drive back to start
         motor.set(0,0)
         time.sleep(1)
