@@ -18,11 +18,11 @@ from Motor import Motor
 from Intersection import Intersection
 
 # Define the motor pins.
-MTR1_LEGA = 7
-MTR1_LEGB = 8
+MTR1_LEGA = 8
+MTR1_LEGB = 7
 
-MTR2_LEGA = 6
-MTR2_LEGB = 5
+MTR2_LEGA = 5
+MTR2_LEGB = 6
 
 
 IR_R  = 14
@@ -67,6 +67,7 @@ if __name__ == "__main__":
     #print(io.read(IR_M))
     acceptingCal = True
     sees = False
+    turn_correct = False
 
     def drivebehavior(motor):
       drivingConditions = True
@@ -140,37 +141,37 @@ if __name__ == "__main__":
       motor.set(0,0)
 
     def lookaround(motor):
-        checks = []
         global acceptingCal
+        global sees
+        global node_cntr
+        global turn_correct
+
+        checks = []
         acceptingCal = True  
         # checks front
         checks.append(checkbehavior(motor))
-        global sees
-        global node_cntr
-        global node_cntr
-        not_seen = False
+        
         for x in range(4):
-           if not_seen == False:
-                motor.set(-0.8,0.8)
-                time.sleep(0.1)
-           sees = False
-           acceptingCal = True
-           start_time = io.get_current_tick()
-           checks.append(True)
-           while sees == False: # and hasn't hit 100 deg
-                if (io.get_current_tick() - start_time) > 650000:
-                    print('100 deg!')
-                    checks[x+1] = False
-                    not_seen = True
-                    
+            sees = False
+            acceptingCal = True
+            start_time = io.get_current_tick()
+            
+            while sees == False: # and hasn't hit 100 deg
+                waittime = 600000 if not turn_correct else 550000
+                if (io.get_current_tick() - start_time) > waittime:
+                    print('waited', waittime)
                     break #sees = True
                 motor.set(-0.8, 0.8)
-                #print(f"slept for turn{x}.")
-                time.sleep(0.05)
-           #time.sleep(0.03)
-           sees = False
-           motor.set(0,0)
-           time.sleep(1)
+            
+            time.sleep(0.07)
+            motor.set(0,0)
+            time.sleep(1)
+            
+            turn_correct = not sees
+            checks.append(sees)
+            #time.sleep(0.03)
+
+        acceptingCal = False
         checks = checks[0:4]
         list_in_nwse_order = checks[-heading:] + checks[:-heading]
         print(f"list: {list_in_nwse_order}")
@@ -182,7 +183,6 @@ if __name__ == "__main__":
         global acceptingCal
         if acceptingCal == True:
            sees = True
-           not_seen = False
  
     def checkbehavior(motor):
            right_val = io.read(IR_R)
@@ -211,10 +211,14 @@ if __name__ == "__main__":
         global sees
         sees = False
         if mag == 1:
+            motor.set(-0.8,0.8)
+            time.sleep(0.1)
             while sees == False:
                 motor.set(-0.8, 0.8)
                 time.sleep(0.05)
         elif mag == 3:
+            motor.set(0.8,-0.8)
+            time.sleep(0.1)
             while sees == False:
                 motor.set(0.8, -0.8)
                 time.sleep(0.05)
@@ -228,6 +232,7 @@ if __name__ == "__main__":
         else:
             print("magnitude is not in 0,1 or 3")
             print(f"Mag is {mag}")
+
 
             
     
@@ -244,9 +249,10 @@ if __name__ == "__main__":
 
 
     try:
-        io.callback(IR_L, pigpio.RISING_EDGE, found)
+        io.callback(IR_M, pigpio.RISING_EDGE, found)
         stop_condition = True
         while (stop_condition == True):
+            unx_cntr = 0
             drivebehavior(motor)
             (curr_long, curr_lat) = shift(long,lat,heading)
             long = curr_long
@@ -331,75 +337,90 @@ if __name__ == "__main__":
           # once exit loop, drive back to start
         motor.set(0,0)
 
-        # store where we ended
-        curr_intersection = [long, lat]
+        while True:
+            # store where we ended
+            curr_intersection =(long, lat)
 
-        time.sleep(1)
-        
-        # clear all headingtoTargets
-        for i in intersections:
-            i.headingToTarget = None
-        
-        int_cntr = 0
- 
-        to_process = [intersection(0,0)] # FIFO list
-        path_to_target = []
-        
-        while(curr_intersection not in to_process):
-            int_cntr += 1
-            temp_target = to_process[0]
-            path_to_target.append(temp_target)
+            time.sleep(1)
             
-            curr_north = (curr_intersection[0],curr_intersection[1]+1)
-            curr_west = (curr_intersection[0]-1,curr_intersection[1])
-            curr_south = (curr_intersection[0],curr_intersection[1]-1)
-            curr_east = (curr_intersection[0] + 1,curr_intersection[1])
-
-            #for x in range(4):
-            if (curr_north) in intersections:
-                to_process(curr_north) 
-                if intersection(curr_north).headingToTarget != None:
-                    intersection(curr_north).headingToTarget = 2
-                    to_process.append(intersection(curr_north))
-            
-            if (curr_west) in intersections:
-                to_process(curr_west) 
-                if intersection(curr_west).headingToTarget != None:
-                    intersection(curr_north).headingToTarget = 3
-                    to_process.append(intersection(curr_west))
-
-            if (curr_south) in intersections:
-                to_process(curr_south) 
-                if intersection(curr_south).headingToTarget != None:
-                    intersection(curr_south).headingToTarget = 0
-                    to_process.append(intersection(curr_south))
-
-            if (curr_east) in intersections:
-                to_process(curr_east) 
-                if intersection(curr_east).headingToTarget != None:
-                    intersection(curr_east).headingToTarget = 1
-                    to_process.append(intersection(curr_east))
-
-        for y in range(int_cntr):
-            cint = intersection(long,lat)
-            turn((cint.headingToTarget - heading) % 4)
-            print(cint.headingToTarget)
-            drivebehavior(motor)
-            heading = (cint.headingToTarget) % 4
-            (long, lat) = shift(long,lat,heading)    
-
-        # get the neighbors
-
-
-
+            # clear all headingtoTargets
+            for i in intersections:
+                i.headingToTarget = None
         
+        
+            int_cntr = 0
+            x = int(input("input x"))
+            y = int(input("input y"))
+            goal = (x,y)
+            print(goal)
+            on_deck = [(x,y)] # FIFO list
+            print(on_deck)
+            processed = []
 
+            int_coords = []
+            
+            for y in intersections:
+                int_coords.append((y.long,y.lat))
+            
+            print("intersections",int_coords)
+
+            while(curr_intersection not in processed):
+                print('1')
+                temp_target = on_deck[0]
+                on_deck = on_deck[1:]
+                processed.append(temp_target)
+                
+                curr_north = (temp_target[0],temp_target[1]+1)
+                curr_west = (temp_target[0]-1,temp_target[1])
+                curr_south = (temp_target[0],temp_target[1]-1)
+                curr_east = (temp_target[0] + 1,temp_target[1])
+
+                #for x in range(4):
+                if (curr_north) in int_coords:
+                    print("exists")
+                    if intersection(curr_north[0],curr_north[1]).headingToTarget == None:
+                        print('add')
+                        intersection(curr_north[0],curr_north[1]).headingToTarget = 2
+                        on_deck.append(curr_north)
+                
+                if (curr_west) in int_coords:
+                    print("exists")
+                    if intersection(curr_west[0],curr_west[1]).headingToTarget == None:
+                        intersection(curr_west[0],curr_west[1]).headingToTarget = 3
+                        on_deck.append(curr_west)
+
+                if (curr_south) in int_coords:
+                    print("exists")
+                    if intersection(curr_south[0],curr_south[1]).headingToTarget == None:
+                        intersection(curr_south[0],curr_south[1]).headingToTarget = 0
+                        on_deck.append(curr_south)
+
+                if (curr_east) in int_coords:
+                    print("exists")
+                    if intersection(curr_east[0],curr_east[1]).headingToTarget == None:
+                        intersection(curr_east[0],curr_east[1]).headingToTarget = 1
+                        on_deck.append(curr_east)
+
+            print("going shortest path")       
+            while (long,lat)!= goal:
+                cint = intersection(long,lat)
+                turn((cint.headingToTarget - heading) % 4)
+                print(cint.headingToTarget)
+                drivebehavior(motor)
+                heading = (cint.headingToTarget) % 4
+                (long, lat) = shift(long,lat,heading) 
+                print(long,lat)
+
+            motor.set(0,0)
+
+
+            # get the neighbors
 
             
         print('done')
-    except ValueError as e:
+    except BaseException as ex:
         motor.set(0,0)
-        print(e)
+        print(ex)
         print('hello')
 
         
