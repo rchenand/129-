@@ -70,8 +70,9 @@ if __name__ == "__main__":
     turn_correct = False
 
     def drivebehavior(motor):
+        # making line following more robust
       drivingConditions = True
-      sharp_turn = 0.3
+      sharp_turn = 0.25
       turn_const = 0.5
       power_const = 0.8
       past_mid = 0
@@ -155,9 +156,10 @@ if __name__ == "__main__":
             sees = False
             acceptingCal = True
             start_time = io.get_current_tick()
-            
+            motor.set(-0.8, 0.8)
+            time.sleep(0.2)
             while sees == False: # and hasn't hit 100 deg
-                waittime = 600000 if not turn_correct else 550000
+                waittime = 550000 if not turn_correct else 500000
                 if (io.get_current_tick() - start_time) > waittime:
                     print('waited', waittime)
                     break #sees = True
