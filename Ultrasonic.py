@@ -5,9 +5,6 @@ import pigpio
 import sys
 import time
 
-
-
-
 rising_time = 0
 distance = 0
 class Ultrasonic:
@@ -29,13 +26,10 @@ class Ultrasonic:
     	# Set up the four pins as output (commanding the motors).
         self.io.set_mode(ULTRA_TRIGGER, pigpio.OUTPUT)
         self.io.set_mode(ULTRA_ECHO, pigpio.INPUT)
-
         
-        # *OR* set up one handler for both.
-        self.cb = io.callback(ULTRA_ECHO, pigpio.EITHER_EDGE, self.either)
-
-
-    
+        # set up one handler for both.
+        self.cb = io.callback(ULTRA_ECHO, pigpio.EITHER_EDGE, self.either)    
+        
     def either(self, gpio, level, tick):
         global rising_time
         global distance
