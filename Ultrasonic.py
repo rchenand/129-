@@ -1,12 +1,14 @@
-# Ultrasonic Class
+# Ultrasonic Class w/ threading
 
 # Imports
 import pigpio
 import sys
 import time
+import random
 
 distance = 0
 rising_time = 0
+
 
 class Ultrasonic:
     def __init__(self, ULTRA_TRIGGER, ULTRA_ECHO, io):    
@@ -20,6 +22,7 @@ class Ultrasonic:
         self.ULTRA_TRIGGER = ULTRA_TRIGGER
         self.distance = 0
         self.rising_time = 0
+        self.stopflag = True
 
     	# Set up the four pins as output (commanding the motors).
         self.io.set_mode(ULTRA_TRIGGER, pigpio.OUTPUT)
@@ -46,9 +49,15 @@ class Ultrasonic:
             # Pull the pins LOW again.
             self.io.write(self.ULTRA_TRIGGER, 0)
             return distance
+            
+    
+    
+    def stopcontinual(self):
+        self.stopflag = True
 
-    
-        
-    
-
-    
+    def runcontinual(self):
+        self.stopflag = False
+        while not self.stopflag:
+            print(self.trigger())
+            time.sleep(0.8 + 0.4 * random.random())
+           
