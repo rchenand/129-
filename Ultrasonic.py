@@ -8,10 +8,8 @@ import time
 
 
 
-
-
-
-
+rising_time = 0
+distance = 0
 class Ultrasonic:
     def __init__(self, ULTRA_TRIGGER, ULTRA_ECHO, io):    
     	# Initialize the connection to the pigpio daemon (GPIO interface).
@@ -31,24 +29,25 @@ class Ultrasonic:
     	# Set up the four pins as output (commanding the motors).
         self.io.set_mode(ULTRA_TRIGGER, pigpio.OUTPUT)
         self.io.set_mode(ULTRA_ECHO, pigpio.INPUT)
+
         
-        
-        self.cbrise = self.io.callback(ULTRA_ECHO, pigpio.RISING_EDGE, self.rising)
-        self.cbfall = self.io.callback(ULTRA_ECHO, pigpio.FALLING_EDGE, self.falling)
+        # *OR* set up one handler for both.
+        self.cb = io.callback(ULTRA_ECHO, pigpio.EITHER_EDGE, self.either)
 
-    def rising(self, gpio, level, tick):
-            print("hi")
-            self.rising_time = tick
-            print(self.rising_time)
 
-    def falling(self, gpio, level, tick):
-
-            # divider 10000
-            self.distance = ((343/2) * (tick- self.rising_time)) / 10000
-            print(self.distance)
+    
+    def either(self, gpio, level, tick):
+        global rising_time
+        global distance
+        if level == 1:
+            rising_time = tick
+        elif level == 0:
+            distance = ((343/2) * (tick- rising_time)) / 10000
+            print(distance)
+        else:
+            print("error")
         
     def trigger(self):
-            print('bye')
             # Pull one (or all) trigger pins HIGH
             self.io.write(self.ULTRA_TRIGGER, 1)
             # Hold for 10microseconds.
@@ -58,7 +57,7 @@ class Ultrasonic:
 
                     # Set up rising and falling interrupt handlers or callbacks.
             # need rising and falling functions
-
+    
         
     
 
