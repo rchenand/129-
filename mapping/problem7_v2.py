@@ -70,7 +70,6 @@ if __name__ == "__main__":
     turn_correct = False
 
     def drivebehavior(motor):
-        # making line following more robust
       drivingConditions = True
       sharp_turn = 0.25
       turn_const = 0.5
