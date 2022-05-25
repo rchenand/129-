@@ -124,7 +124,7 @@ class Robot:
             motor.set(-0.8, 0.8)
             time.sleep(0.2)
             while sees == False: # and hasn't hit 100 deg
-                waittime = 550000 if not turn_correct else 500000
+                waittime = 500000 if not turn_correct else 450000
                 if (self.io.get_current_tick() - start_time) > waittime:
                     print('waited', waittime)
                     break #sees = True
@@ -261,16 +261,16 @@ class Robot:
                 print("there is an unexplored")
                 if nint.streets[heading] is constants.UNEXPLORED:
                     print("going forward")
-                    self.turn(0,motor)
+                    self.turn(motor, 0)
                    #heading = heading
                 elif nint.streets[(heading + 1) % 4] is constants.UNEXPLORED:
                     print("left")
                     print(nint.streets[heading])
-                    self.turn(1,motor)
+                    self.turn(motor,1)
                     heading = (heading + 1) % 4
                 elif nint.streets[(heading + 3) % 4] is constants.UNEXPLORED:
                     print("right")
-                    self.turn(3,motor)
+                    self.turn(motor,3)
                     heading = (heading + 3) % 4
             else:
                 print("there is a connected")
@@ -284,7 +284,7 @@ class Robot:
                 choice2 = constants.random.choice(connected_streets)
                 #print(connected_streets)
                 #print("turning to a connected")
-                self.turn((choice2 - heading) % 4)
+                self.turn(motor,(choice2 - heading) % 4)
                     
                 heading = choice2
             for x in intersections:
