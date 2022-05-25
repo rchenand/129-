@@ -60,12 +60,6 @@ if __name__ == "__main__":
     left_val = io.read(IR_L)
     mid_val = io.read(IR_M)
     
-    # intialize three ultrasonics as objects
-    ultra1 = Ultrasonic(ULTRA1_TRIGGER, ULTRA1_ECHO, io)
-    ultra2 = Ultrasonic(ULTRA2_TRIGGER, ULTRA2_ECHO, io)
-    ultra3 = Ultrasonic(ULTRA3_TRIGGER, ULTRA3_ECHO, io)
-
-
 
     def userinput():
         print('user')
@@ -80,18 +74,20 @@ if __name__ == "__main__":
                 #set flags so the robot will choose the next intersection
                 # to explore the full map.
                 print("Exploring without a target")
-                robot.pausedriving = False
+                robot.keepdriving = True
 
             # drive to target
             elif (command == 'goto'):
                 #set flags so the robot drive to the given location.
                 print("Driving to a target")
-                robot.pausedriving = False
+                robot.keepdriving = False
 
             # pause at next intersection
             elif (command == 'pause'):
                 print("Pausing at the next intersection")
-                robot.pausedriving = True
+                robot.keepdriving = False
+                print(robot.keepdriving)
+                motor.set(0,0)
 
             # save map
             elif (command == 'save'):
@@ -119,14 +115,6 @@ if __name__ == "__main__":
             else:
                 print("Unknown command ’%s’" % command)
 
-    triggering_thread = threading.Thread(target=ultra1.runcontinual)
-    triggering_thread.start()
-
-    triggering_thread2 = threading.Thread(target=ultra2.runcontinual)
-    triggering_thread2.start()
-
-    triggering_thread3 = threading.Thread(target=ultra3.runcontinual)
-    triggering_thread3.start()
 
     driving_thread = threading.Thread(target=robot.driving_loop,args=(motor,))
     driving_thread.start()
@@ -142,13 +130,7 @@ if __name__ == "__main__":
 
     
 
-    # Wait for the two threads to be done (re-joined)
-    ultra1.stopcontinual()
-    ultra2.stopcontinual()
-    ultra3.stopcontinual()
-    triggering_thread.join()
-    triggering_thread2.join()
-    triggering_thread3.join()
+
     robot.driving_stop()
     driving_thread.join()
 
