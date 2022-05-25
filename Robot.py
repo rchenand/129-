@@ -38,7 +38,7 @@ class Robot:
             sys.exit(0)
         
         self.driving_stopflag = True
-        self.pausedriving = False
+        self.keepdriving = False
         
     # line following to intersection
     def drivebehavior(self,motor):
@@ -127,7 +127,7 @@ class Robot:
             motor.set(-0.8, 0.8)
             time.sleep(0.2)
             while sees == False: # and hasn't hit 100 deg
-                waittime = 500000 if not turn_correct else 450000
+                waittime = 550000 if not turn_correct else 500000
                 if (self.io.get_current_tick() - start_time) > waittime:
                     print('waited', waittime)
                     break #sees = True
@@ -217,95 +217,97 @@ class Robot:
 
 
     def mapping(self,motor):
-        global long, lat, heading, intersections, lastintersection, node_cntr, unx_cntr, side_status, check_sides
-        self.io.callback(constants.IR_M, pigpio.RISING_EDGE, self.found)
-        stop_condition = True
-        while (stop_condition == True):
-            unx_cntr = 0
-            self.drivebehavior(motor)
-            (curr_long, curr_lat) = self.shift(long,lat,heading)
-            long = curr_long
-            lat = curr_lat
-            print(f"Intersection Number: {node_cntr}")
-            node_cntr = node_cntr + 1
-            # new intersection
-            if self.intersection(long, lat) == None:
-                intersections.append(Intersection(long,lat))
-           
-            # get true or false in NWSE order [T, F, F, T]
-                check_sides = self.lookaround(motor)
-
-                # if check_sides True --> UNEXPLORED, if false --> NOSTREET
-                self.intersection(long,lat).streets = [constants.UNEXPLORED if k else constants.NOSTREET for k in check_sides]
-                print(f"streets: {self.intersection(long,lat).streets}")
-
-                # it came from this place, so it's connected
-            else:
-                print("been here before")
-                print(f"streets: {self.intersection(long,lat).streets}")
+        while self.keepdriving == True:
+            global long, lat, heading, intersections, lastintersection, node_cntr, unx_cntr, side_status, check_sides
+            self.io.callback(constants.IR_M, pigpio.RISING_EDGE, self.found)
+            stop_condition = True
+            while (stop_condition == True): # add the pause flag here? 
+                unx_cntr = 0
+                self.drivebehavior(motor)
+                (curr_long, curr_lat) = self.shift(long,lat,heading)
+                long = curr_long
+                lat = curr_lat
+                print(f"Intersection Number: {node_cntr}")
+                node_cntr = node_cntr + 1
+                # new intersection
+                if self.intersection(long, lat) == None:
+                    intersections.append(Intersection(long,lat))
             
-            
+                # get true or false in NWSE order [T, F, F, T]
+                    check_sides = self.lookaround(motor)
 
-            # update previous intersection as connected
-            if lastintersection != None:
-                #print("adding back and last back as connected")
-                            # sets current intersection back to connected
-                self.intersection(long,lat).streets[(heading+2) % 4] = constants.CONNECTED
-                self.intersection(lastintersection[0],lastintersection[1]).streets[heading] = constants.CONNECTED
-            # connects opposing street if not first intersection
-           # global lastintersection
-            
-            nint = self.intersection(long,lat)
+                    # if check_sides True --> UNEXPLORED, if false --> NOSTREET
+                    self.intersection(long,lat).streets = [constants.UNEXPLORED if k else constants.NOSTREET for k in check_sides]
+                    print(f"streets: {self.intersection(long,lat).streets}")
 
-            nint.headingToTarget = (heading+2) % 4
+                    # it came from this place, so it's connected
+                else:
+                    print("been here before")
+                    print(f"streets: {self.intersection(long,lat).streets}")
+                
+                
+
+                # update previous intersection as connected
+                if lastintersection != None:
+                    #print("adding back and last back as connected")
+                                # sets current intersection back to connected
+                    self.intersection(long,lat).streets[(heading+2) % 4] = constants.CONNECTED
+                    self.intersection(lastintersection[0],lastintersection[1]).streets[heading] = constants.CONNECTED
+                # connects opposing street if not first intersection
+            # global lastintersection
+                
+                nint = self.intersection(long,lat)
+
+                nint.headingToTarget = (heading+2) % 4
 
 
-            if constants.UNEXPLORED in nint.streets:
-                print("there is an unexplored")
-                if nint.streets[heading] is constants.UNEXPLORED:
-                    print("going forward")
-                    self.turn(motor, 0)
-                   #heading = heading
-                elif nint.streets[(heading + 1) % 4] is constants.UNEXPLORED:
-                    print("left")
-                    print(nint.streets[heading])
-                    self.turn(motor,1)
-                    heading = (heading + 1) % 4
-                elif nint.streets[(heading + 3) % 4] is constants.UNEXPLORED:
-                    print("right")
-                    self.turn(motor,3)
-                    heading = (heading + 3) % 4
-            else:
-                print("there is a connected")
-                connected_streets = []
-                for y in range(len(nint.streets)):
-                    if nint.streets[y] is constants.CONNECTED:
-                        #print("CONNECTED")
-                        if (y != (heading + 2) % 4):
-                            #print("Not behind")
-                            connected_streets.append(y)
-                choice2 = constants.random.choice(connected_streets)
-                #print(connected_streets)
-                #print("turning to a connected")
-                self.turn(motor,(choice2 - heading) % 4)
-                    
-                heading = choice2
-            for x in intersections:
-                if constants.UNEXPLORED in x.streets:
-                    unx_cntr = unx_cntr + 1
-                    
-            
-            # update after  first
-            lastintersection = [long,lat]
-            print(lastintersection)
+                if constants.UNEXPLORED in nint.streets:
+                    print("there is an unexplored")
+                    if nint.streets[heading] is constants.UNEXPLORED:
+                        #print("going forward")
+                        self.turn(motor, 0)
+                    #heading = heading
+                    elif nint.streets[(heading + 1) % 4] is constants.UNEXPLORED:
+                        #print("left")
+                        print(nint.streets[heading])
+                        self.turn(motor,1)
+                        heading = (heading + 1) % 4
+                    elif nint.streets[(heading + 3) % 4] is constants.UNEXPLORED:
+                        #print("right")
+                        self.turn(motor,3)
+                        heading = (heading + 3) % 4
+                else:
+                    print("there is a connected")
+                    connected_streets = []
+                    for y in range(len(nint.streets)):
+                        if nint.streets[y] is constants.CONNECTED:
+                            #print("CONNECTED")
+                            if (y != (heading + 2) % 4):
+                                #print("Not behind")
+                                connected_streets.append(y)
+                    choice2 = constants.random.choice(connected_streets)
+                    #print(connected_streets)
+                    #print("turning to a connected")
+                    self.turn(motor,(choice2 - heading) % 4)
+                        
+                    heading = choice2
+                for x in intersections:
+                    if constants.UNEXPLORED in x.streets:
+                        unx_cntr = unx_cntr + 1
+                        
+                
+                # update after  first
+                lastintersection = [long,lat]
+                print(lastintersection)
 
-            if unx_cntr ==0:
-                stop_condition = False
+                if unx_cntr ==0:
+                    stop_condition = False
 
-        print("EVERYTHING MAPPED") 
-          # once exit loop, drive back to start
+            print("EVERYTHING MAPPED") 
+            # once exit loop, drive back to start
+            motor.set(0,0)
+        print("change of command")
         motor.set(0,0)
-    
 
     # start dijkstras
     def dijkstras(self,motor):
@@ -392,10 +394,10 @@ class Robot:
     def driving_loop(self,motor):
         self.driving_stopflag = False
         while not self.driving_stopflag:
+            print("driving loop entered")
         # Pause at this intersection, if requested
-            if self.pausedriving:
+            if not self.keepdriving:
                 motor.set(0,0)
-
             else:
             # Move from this intersection to the next intersection
                 self.mapping(motor)
