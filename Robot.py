@@ -37,6 +37,9 @@ class Robot:
             print("Unable to connection to pigpio daemon!")
             sys.exit(0)
         
+        self.driving_stopflag = True
+        self.pausedriving = False
+        
     # line following to intersection
     def drivebehavior(self,motor):
       drivingConditions = True
@@ -302,6 +305,104 @@ class Robot:
         print("EVERYTHING MAPPED") 
           # once exit loop, drive back to start
         motor.set(0,0)
+    
+
+    # start dijkstras
+    def dijkstras(self,motor):
+        while True:
+            # store where we ended
+            curr_intersection =(long, lat)
+
+            time.sleep(1)
+            
+            # clear all headingtoTargets
+            for i in intersections:
+                i.headingToTarget = None
+        
+        
+            int_cntr = 0
+            x = int(input("input x"))
+            y = int(input("input y"))
+            goal = (x,y)
+            print(goal)
+            on_deck = [(x,y)] # FIFO list
+            print(on_deck)
+            processed = []
+
+            int_coords = []
+            
+            for y in intersections:
+                int_coords.append((y.long,y.lat))
+            
+            print("intersections",int_coords)
+
+            while(curr_intersection not in processed):
+                print('1')
+                temp_target = on_deck[0]
+                on_deck = on_deck[1:]
+                processed.append(temp_target)
+                
+                curr_north = (temp_target[0],temp_target[1]+1)
+                curr_west = (temp_target[0]-1,temp_target[1])
+                curr_south = (temp_target[0],temp_target[1]-1)
+                curr_east = (temp_target[0] + 1,temp_target[1])
+
+                #for x in range(4):
+                if (curr_north) in int_coords:
+                    print("exists")
+                    if self.intersection(curr_north[0],curr_north[1]).headingToTarget == None:
+                        print('add')
+                        self.intersection(curr_north[0],curr_north[1]).headingToTarget = 2
+                        on_deck.append(curr_north)
+                
+                if (curr_west) in int_coords:
+                    print("exists")
+                    if self.intersection(curr_west[0],curr_west[1]).headingToTarget == None:
+                        self.intersection(curr_west[0],curr_west[1]).headingToTarget = 3
+                        on_deck.append(curr_west)
+
+                if (curr_south) in int_coords:
+                    print("exists")
+                    if self.intersection(curr_south[0],curr_south[1]).headingToTarget == None:
+                        self.intersection(curr_south[0],curr_south[1]).headingToTarget = 0
+                        on_deck.append(curr_south)
+
+                if (curr_east) in int_coords:
+                    print("exists")
+                    if self.intersection(curr_east[0],curr_east[1]).headingToTarget == None:
+                        self.intersection(curr_east[0],curr_east[1]).headingToTarget = 1
+                        on_deck.append(curr_east)
+
+            print("going shortest path")       
+            while (long,lat)!= goal:
+                cint = self.intersection(long,lat)
+                self.turn(motor,(cint.headingToTarget - heading) % 4)
+                print(cint.headingToTarget)
+                self.drivebehavior(motor)
+                heading = (cint.headingToTarget) % 4
+                (long, lat) = self.shift(long,lat,heading) 
+                print(long,lat)
+
+            motor.set(0,0)
+
+    # Driving thread: drive from intersection to intersection
+    def driving_stop(self):
+        self.driving_stopflag = True
+    
+    def driving_loop(self,motor):
+        self.driving_stopflag = False
+        while not self.driving_stopflag:
+        # Pause at this intersection, if requested
+            if self.pausedriving:
+                motor.set(0,0)
+
+            else:
+            # Move from this intersection to the next intersection
+                self.mapping(motor)
+
+
+
+
 
     	
 
