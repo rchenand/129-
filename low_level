@@ -1,0 +1,158 @@
+#!/usr/bin/env python3
+#
+#   motordemo.py
+#
+#   This shows how to interface with the GPIO (general purpose I/O)
+#   pins and how to drive the PWM for the motors.  Please use as an
+#   example, but change to suit the weekly goals.
+#
+
+# Imports
+import pigpio
+import sys
+import time
+import random
+import threading
+
+from Ultrasonic import Ultrasonic
+from Motor import Motor
+
+
+from Robot import Robot
+
+
+
+# set up pins
+ULTRA1_TRIGGER = 13
+ULTRA1_ECHO = 16
+
+ULTRA2_TRIGGER = 19
+ULTRA2_ECHO = 20
+
+ULTRA3_TRIGGER = 26
+ULTRA3_ECHO = 21
+IR_R  = 14
+IR_M =  15
+IR_L = 18
+
+distance = 0
+rising_time = 0
+
+
+#
+#   Main
+#
+
+
+if __name__ == "__main__":
+
+    io = pigpio.pi()
+
+    if not io.connected:
+        print("Unable to connection to pigpio daemon!")
+        sys.exit(0)
+
+    motor = Motor()
+    robot = Robot()
+    
+    # read IR values
+    right_val = io.read(IR_R)
+    left_val = io.read(IR_L)
+    mid_val = io.read(IR_M)
+    
+    # intialize three ultrasonics as objects
+    ultra1 = Ultrasonic(ULTRA1_TRIGGER, ULTRA1_ECHO, io)
+    ultra2 = Ultrasonic(ULTRA2_TRIGGER, ULTRA2_ECHO, io)
+    ultra3 = Ultrasonic(ULTRA3_TRIGGER, ULTRA3_ECHO, io)
+
+
+
+    def userinput():
+        print('user')
+        while True:
+        # Grab a command
+        
+            command = input("Command ? ")
+        
+        # Compare against possible commands.
+        # start exploring
+            if (command == 'explore'):
+                #set flags so the robot will choose the next intersection
+                # to explore the full map.
+                print("Exploring without a target")
+                robot.pausedriving = False
+
+            # drive to target
+            elif (command == 'goto'):
+                #set flags so the robot drive to the given location.
+                print("Driving to a target")
+                robot.pausedriving = False
+
+            # pause at next intersection
+            elif (command == 'pause'):
+                print("Pausing at the next intersection")
+                robot.pausedriving = True
+
+            # save map
+            elif (command == 'save'):
+                print("Saving current map into file")
+                # how do we do that lol
+            
+            # save map
+            elif (command == 'load'):
+                print("Loading map from file")
+                # how do we do that lol
+            
+            # save map
+            elif (command == 'location'):
+                print("Currently at . . . ")
+
+            # print current state, or change parameters
+            elif (command == 'print'):
+                # ... and/or useful debug values?
+                print(map)
+
+            # stop mapping
+            elif (command == 'quit'):
+                print("Quitting...")
+                break
+            else:
+                print("Unknown command ’%s’" % command)
+
+    triggering_thread = threading.Thread(target=ultra1.runcontinual)
+    triggering_thread.start()
+
+    triggering_thread2 = threading.Thread(target=ultra2.runcontinual)
+    triggering_thread2.start()
+
+    triggering_thread3 = threading.Thread(target=ultra3.runcontinual)
+    triggering_thread3.start()
+
+    driving_thread = threading.Thread(target=robot.driving_loop,args=(motor,))
+    driving_thread.start()
+
+    try:
+        userinput()
+
+            # run/stop continual triggering?
+
+    except BaseException as ex:
+        print("Ending due to exception: %s" % repr(ex))
+        motor.set(0,0)
+
+    
+
+    # Wait for the two threads to be done (re-joined)
+    ultra1.stopcontinual()
+    ultra2.stopcontinual()
+    ultra3.stopcontinual()
+    triggering_thread.join()
+    triggering_thread2.join()
+    triggering_thread3.join()
+    robot.driving_stop()
+    driving_thread.join()
+
+    #shutdown stuff
+
+            
+    
