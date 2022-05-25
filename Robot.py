@@ -217,7 +217,7 @@ class Robot:
 
 
     def mapping(self,motor):
-        while self.keepdriving == True:
+        while self.keepdriving == True: #and self.driving_stopflag == False:
             global long, lat, heading, intersections, lastintersection, node_cntr, unx_cntr, side_status, check_sides
             self.io.callback(constants.IR_M, pigpio.RISING_EDGE, self.found)
             stop_condition = True
