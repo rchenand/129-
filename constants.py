@@ -372,7 +372,7 @@ class Robot:
                 self.mapping(motor)
             
             elif self.gotoint: # go to an intersection
-                self.dijkstras(motor,)
+                self.dijkstras(motor)
 
             else: # Pause at this intersection, if requested
                 motor.set(0,0)
