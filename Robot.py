@@ -11,12 +11,10 @@ import pigpio
 import sys
 import time
 import copy
+import pickle 
 
-# Global Variables:
-intersections = [] # List of intersections
-lastintersection = None # Last intersection visited
-long = 0 # Current east/west coordinate
-lat = -1 # Current north/south coordinate
+
+# global variables
 
 heading = constants.NORTH # Current heading
 
@@ -43,7 +41,15 @@ class Robot:
         self.gotoint = False
         self.x = 0
         self.y = 0
-        
+
+        # other attributes for mapping
+        self.intersections = [] # List of intersections
+        self.lastintersection = None # Last intersection visited
+        self.long = 0 # Current east/west coordinate
+        self.lat = -1 # Current north/south coordinate
+    
+    
+
     # line following to intersection
     def drivebehavior(self,motor):
       drivingConditions = True
@@ -211,7 +217,7 @@ class Robot:
 
       # Find the intersection
     def intersection(self,long, lat):
-        list = [i for i in intersections if i.long == long and i.lat == lat]
+        list = [i for i in self.intersections if i.long == long and i.lat == lat]
         if len(list) == 0:
             return None
         if len(list) > 1:
@@ -222,7 +228,7 @@ class Robot:
 
     def mapping(self,motor):
         while self.keepdriving == True: #and self.driving_stopflag == False:
-            global long, lat, heading, intersections, lastintersection, node_cntr, unx_cntr, side_status, check_sides
+            global long, lat, heading, node_cntr, unx_cntr, side_status, check_sides
             self.io.callback(constants.IR_M, pigpio.RISING_EDGE, self.found)
             stop_condition = True
             while (stop_condition == True and self.keepdriving == True): # add the pause flag here? 
@@ -235,7 +241,7 @@ class Robot:
                 node_cntr = node_cntr + 1
                 # new intersection
                 if self.intersection(long, lat) == None:
-                    intersections.append(Intersection(long,lat))
+                    self.intersections.append(Intersection(long,lat))
             
                 # get true or false in NWSE order [T, F, F, T]
                     check_sides = self.lookaround(motor)
@@ -252,11 +258,11 @@ class Robot:
                 
 
                 # update previous intersection as connected
-                if lastintersection != None:
+                if self.lastintersection != None:
                     #print("adding back and last back as connected")
                                 # sets current intersection back to connected
                     self.intersection(long,lat).streets[(heading+2) % 4] = constants.CONNECTED
-                    self.intersection(lastintersection[0],lastintersection[1]).streets[heading] = constants.CONNECTED
+                    self.intersection(self.lastintersection[0],self.lastintersection[1]).streets[heading] = constants.CONNECTED
                 # connects opposing street if not first intersection
             # global lastintersection
                 
@@ -295,14 +301,14 @@ class Robot:
                     self.turn(motor,(choice2 - heading) % 4)
                         
                     heading = choice2
-                for x in intersections:
+                for x in self.intersections:
                     if constants.UNEXPLORED in x.streets:
                         unx_cntr = unx_cntr + 1
                         
                 
                 # update after  first
-                lastintersection = [long,lat]
-                print(lastintersection)
+                self.lastintersection = [long,lat]
+                print(self.lastintersection)
 
                 if unx_cntr ==0:
                     stop_condition = False
@@ -316,16 +322,16 @@ class Robot:
     # start dijkstras
     def dijkstras(self,motor):
         print("running dijkstras")
-        global long, lat, heading, intersections, lastintersection, node_cntr, unx_cntr, check_sides
+        global heading, node_cntr, unx_cntr, check_sides
         while True:
             # store where we ended
-            curr_intersection =(long, lat)
+            curr_intersection =(self.long, self.lat)
 
             time.sleep(1)
 
 
             # clear all headingtoTargets
-            for i in intersections:
+            for i in self.intersections:
                 i.headingToTarget = None
             
             int_cntr = 0
@@ -337,8 +343,8 @@ class Robot:
 
             int_coords = []
             
-            for y in intersections:
-                int_coords.append((y.long,y.lat))
+            for y in self.intersections:
+                int_coords.append((y.self.long,y.self.lat))
             
             print("intersections",int_coords)
 
@@ -383,13 +389,13 @@ class Robot:
                         on_deck.append(curr_east)
 
             print("going shortest path")       
-            while (long,lat)!= goal:
-                cint = self.intersection(long,lat)
+            while (self.long,self.lat)!= goal:
+                cint = self.intersection(self.long,self.lat)
                 self.turn(motor,(cint.headingToTarget - heading) % 4)
                 self.drivebehavior(motor)
                 heading = (cint.headingToTarget) % 4
-                (long, lat) = self.shift(long,lat,heading) 
-                print(long,lat)
+                (self.long, self.lat) = self.shift(self.long,self.lat,heading) 
+                print(self.long,self.lat)
 
             motor.set(0,0)
 
