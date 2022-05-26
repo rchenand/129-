@@ -13,6 +13,7 @@ import sys
 import time
 import random
 import threading
+import pickle
 
 from Ultrasonic import Ultrasonic
 from Motor import Motor
@@ -95,19 +96,21 @@ if __name__ == "__main__":
                 motor.set(0,0)
 
             # save map
-            elif (command == 'save'):
+            elif (command[:4] == 'save'):
                 print("Saving current map into file")
-                # how do we do that lol
+                with open(command[5:]+'.pickle', 'wb') as file:
+                    pickle.dump(robot.intersections, file)
+
             
             # save map
-            elif (command == 'load'):
-                print("Loading map from file")
-                # how do we do that lol
-            
+            elif (command[:4] == 'load'):
+                print("Loading the map...")
+                with open(command[5:]+'.pickle', 'rb') as file:
+                    robot.intersections = pickle.load(file)
+
             # printing curr intersection
             elif (command == 'location'):
                 print("Currently at", (robot.long, robot.lat))
-
 
             # stop mapping
             elif (command == 'quit'):
