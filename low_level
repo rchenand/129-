@@ -77,15 +77,20 @@ if __name__ == "__main__":
                 robot.keepdriving = True
 
             # drive to target
-            elif (command == 'goto'):
-                #set flags so the robot drive to the given location.
+            elif (command[:4] == 'goto'):
+                #set flags so the robot drive to the given location.3
+                # use our dijkstras
+                
                 print("Driving to a target")
-                robot.keepdriving = False
+                robot.gotoint = True
+                robot.x = int(command[5:6])
+                robot.y = int(command[7:8])
 
             # pause at next intersection
             elif (command == 'pause'):
                 print("Pausing at the next intersection")
                 robot.keepdriving = False
+                robot.driving_stopflag = False
                 print(robot.keepdriving)
                 motor.set(0,0)
 
@@ -99,14 +104,10 @@ if __name__ == "__main__":
                 print("Loading map from file")
                 # how do we do that lol
             
-            # save map
+            # printing curr intersection
             elif (command == 'location'):
-                print("Currently at . . . ")
+                print("Currently at", (robot.long, robot.lat))
 
-            # print current state, or change parameters
-            elif (command == 'print'):
-                # ... and/or useful debug values?
-                print(map)
 
             # stop mapping
             elif (command == 'quit'):
@@ -115,6 +116,7 @@ if __name__ == "__main__":
             else:
                 print("Unknown command ’%s’" % command)
 
+    # ADD ultrasonic threads too
 
     driving_thread = threading.Thread(target=robot.driving_loop,args=(motor,))
     driving_thread.start()
