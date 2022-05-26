@@ -1,65 +1,120 @@
-# Ultrasonic Class
+'''Main method file'''
 
 # Imports
 import pigpio
 import sys
-import time
-import random
+import threading
+import pickle
+import constants
 
+from Ultrasonic import Ultrasonic
+from Motor import Motor
+from Robot import Robot
 
+#
+#   Main
+#
+if __name__ == "__main__":
+    io = pigpio.pi()
+    if not io.connected:
+        print("Unable to connection to pigpio daemon!")
+        sys.exit(0)
 
-
-class Ultrasonic:
-    def __init__(self, ULTRA_TRIGGER, ULTRA_ECHO, io):    
-    	# Initialize the connection to the pigpio daemon (GPIO interface).
-        self.io = io
-        if not self.io.connected:
-            print("Unable to connection to pigpio daemon!")
-            sys.exit(0)
-
-        self.ULTRA_ECHO = ULTRA_ECHO
-        self.ULTRA_TRIGGER = ULTRA_TRIGGER
-        self.stopflag = True
-
-        self.distance = 100
-        self.rising_time = 0
-
-    	# Set up the four pins as output (commanding the motors).
-        self.io.set_mode(ULTRA_TRIGGER, pigpio.OUTPUT)
-        self.io.set_mode(ULTRA_ECHO, pigpio.INPUT)
-
-        # *OR* set up one handler for both.
-        self.cb = io.callback(ULTRA_ECHO, pigpio.EITHER_EDGE, self.either)
+    # create motor and robot objects for moving and mapping, etc.
+    motor = Motor()
+    robot = Robot()
     
-    def either(self, gpio, level, tick):
-        if level == 1:
-            self.rising_time = tick
-        elif level == 0:
-            self.distance = ((343/2) * (tick- self.rising_time)) / 10000
-        else:
-            print("error")
+    def userinput(): # main thread
+        while True:
+        # Grab a command
+            command = input("Command ? ")
         
-    def trigger(self):
-            # Pull one (or all) trigger pins HIGH
-            self.io.write(self.ULTRA_TRIGGER, 1)
-            # Hold for 10microseconds.
-            time.sleep(0.000010)
-            # Pull the pins LOW again.
-            self.io.write(self.ULTRA_TRIGGER, 0)
+        # Compare against possible commands.
+        # start exploring
+            if (command == 'explore'):
+                #set flags so the robot will choose the next intersection
+                # to explore the full map.
+                print("Exploring without a target")
+                robot.keepdriving = True
+
+            # drive to target
+            elif (command[:4] == 'goto'):
+                #set flags so the robot drive to the given location.3
+                # use our dijkstras
+                
+                print("Driving to a target")
+                robot.gotoint = True
+                robot.x = int(command[5:6])
+                robot.y = int(command[7:8])
+
+            # pause at next intersection
+            elif (command == 'pause'):
+                print("Pausing at the next intersection")
+                robot.keepdriving = False
+                robot.driving_stopflag = False
+                print(robot.keepdriving)
+                motor.set(0,0)
+
+            # save map
+            elif (command[:4] == 'save'):
+                print("Saving current map into file")
+                with open(command[5:]+'.pickle', 'wb') as file:
+                    pickle.dump(robot.intersections, file)
+
+            # save map
+            elif (command[:4] == 'load'):
+                print("Loading the map...")
+                with open(command[5:]+'.pickle', 'rb') as file:
+                    robot.intersections = pickle.load(file)
+
+            # printing curr intersection
+            elif (command == 'location'):
+                print("Currently at", (robot.long, robot.lat))
+
+            # stop mapping
+            elif (command == 'quit'):
+                print("Quitting...")
+                break
+            else:
+                print("Unknown command ’%s’" % command)
+
+    # ultrasonic objects 
+    ultra1 = Ultrasonic(constants.ULTRA1_TRIGGER, constants.ULTRA1_ECHO, io)
+    ultra2 = Ultrasonic(constants.ULTRA2_TRIGGER, constants.ULTRA2_ECHO, io)
+    ultra3 = Ultrasonic(constants.ULTRA3_TRIGGER, constants.ULTRA3_ECHO, io)
+
+    # threads, ultrasonic, driving
+    ultrasonic1_thread = threading.Thread(target=ultra1.runcontinual)
+    ultrasonic1_thread.start()
+
+    ultrasonic2_thread = threading.Thread(target=ultra2.runcontinual)
+    ultrasonic2_thread.start()
+
+    ultrasonic3_thread = threading.Thread(target=ultra3.runcontinual)
+    ultrasonic3_thread.start()
+
+    driving_thread = threading.Thread(target=robot.driving_loop,args=(motor,))
+    driving_thread.start()
+
+    try:
+        userinput()
+
+    except BaseException as ex:
+        print("Ending due to exception: %s" % repr(ex))
+        motor.set(0,0)
+
+    # Wait for the threads to be done (re-joined)
+    ultra1.stopcontinual()
+    ultrasonic1_thread.join()
+    ultra2.stopcontinual()
+    ultrasonic2_thread.join()
+    ultra3.stopcontinual()
+    ultrasonic3_thread.join()
+
+    robot.driving_stop()
+    driving_thread.join()
+
+    #shutdown stuff
+
             
-
-    def stopcontinual(self):
-        self.stopflag = True
-
-    def runcontinual(self):
-        self.stopflag = False
-        while not self.stopflag:
-            self.trigger()
-            time.sleep((0.8 + 0.4 * random.random()) / 1000)
-            
-
-    
-        
-    
-
     
