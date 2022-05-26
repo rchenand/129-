@@ -10,6 +10,7 @@ import constants
 import pigpio
 import sys
 import time
+import copy
 
 # Global Variables:
 intersections = [] # List of intersections
@@ -39,6 +40,9 @@ class Robot:
         
         self.driving_stopflag = True
         self.keepdriving = False
+        self.gotoint = False
+        self.x = 0
+        self.y = 0
         
     # line following to intersection
     def drivebehavior(self,motor):
@@ -221,7 +225,7 @@ class Robot:
             global long, lat, heading, intersections, lastintersection, node_cntr, unx_cntr, side_status, check_sides
             self.io.callback(constants.IR_M, pigpio.RISING_EDGE, self.found)
             stop_condition = True
-            while (stop_condition == True): # add the pause flag here? 
+            while (stop_condition == True and self.keepdriving == True): # add the pause flag here? 
                 unx_cntr = 0
                 self.drivebehavior(motor)
                 (curr_long, curr_lat) = self.shift(long,lat,heading)
@@ -311,23 +315,23 @@ class Robot:
 
     # start dijkstras
     def dijkstras(self,motor):
+        print("running dijkstras")
+        global long, lat, heading, intersections, lastintersection, node_cntr, unx_cntr, check_sides
         while True:
             # store where we ended
             curr_intersection =(long, lat)
 
             time.sleep(1)
-            
+
+
             # clear all headingtoTargets
             for i in intersections:
                 i.headingToTarget = None
-        
-        
+            
             int_cntr = 0
-            x = int(input("input x"))
-            y = int(input("input y"))
-            goal = (x,y)
+            goal = (self.x,self.y)
             print(goal)
-            on_deck = [(x,y)] # FIFO list
+            on_deck = [(self.x,self.y)] # FIFO list
             print(on_deck)
             processed = []
 
@@ -339,7 +343,7 @@ class Robot:
             print("intersections",int_coords)
 
             while(curr_intersection not in processed):
-                print('1')
+                print("hello")
                 temp_target = on_deck[0]
                 on_deck = on_deck[1:]
                 processed.append(temp_target)
@@ -360,18 +364,21 @@ class Robot:
                 if (curr_west) in int_coords:
                     print("exists")
                     if self.intersection(curr_west[0],curr_west[1]).headingToTarget == None:
+                        print('add')
                         self.intersection(curr_west[0],curr_west[1]).headingToTarget = 3
                         on_deck.append(curr_west)
 
                 if (curr_south) in int_coords:
                     print("exists")
                     if self.intersection(curr_south[0],curr_south[1]).headingToTarget == None:
+                        print('add')
                         self.intersection(curr_south[0],curr_south[1]).headingToTarget = 0
                         on_deck.append(curr_south)
 
                 if (curr_east) in int_coords:
                     print("exists")
                     if self.intersection(curr_east[0],curr_east[1]).headingToTarget == None:
+                        print('add')
                         self.intersection(curr_east[0],curr_east[1]).headingToTarget = 1
                         on_deck.append(curr_east)
 
@@ -379,7 +386,6 @@ class Robot:
             while (long,lat)!= goal:
                 cint = self.intersection(long,lat)
                 self.turn(motor,(cint.headingToTarget - heading) % 4)
-                print(cint.headingToTarget)
                 self.drivebehavior(motor)
                 heading = (cint.headingToTarget) % 4
                 (long, lat) = self.shift(long,lat,heading) 
@@ -393,14 +399,17 @@ class Robot:
     
     def driving_loop(self,motor):
         self.driving_stopflag = False
-        while not self.driving_stopflag:
-            print("driving loop entered")
+        while True: #not self.driving_stopflag:
         # Pause at this intersection, if requested
-            if not self.keepdriving:
-                motor.set(0,0)
+            if self.keepdriving:
+                self.mapping(motor)
+            
+            elif self.gotoint: 
+                self.dijkstras(motor,)
+
             else:
             # Move from this intersection to the next intersection
-                self.mapping(motor)
+                motor.set(0,0)
 
 
 
