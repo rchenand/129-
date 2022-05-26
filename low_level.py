@@ -61,17 +61,19 @@ if __name__ == "__main__":
                 with open(command[5:]+'.pickle', 'wb') as file:
                     pickle.dump(robot.intersections, file)
 
-            # save map
+            # load map
             elif (command[:4] == 'load'):
                 print("Loading the map...")
                 with open(command[5:]+'.pickle', 'rb') as file:
                     robot.intersections = pickle.load(file)
 
-            # printing curr intersection
+            # get curr location
             elif (command == 'location'):
                 print("Currently at", (robot.long, robot.lat))
+            
+            # add change for location
 
-            # stop mapping
+            # quit
             elif (command == 'quit'):
                 print("Quitting...")
                 break
