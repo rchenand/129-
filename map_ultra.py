@@ -26,39 +26,43 @@ if __name__ == "__main__":
     
 
 
-    def ultra_detects(robot):
+    def ultra_detects(robot,ultra1, ultra2, ultra3):
     # FIGURE OUT WHERE TO PUT THIS
         # blocked intersection
         # blocked street
         # tunnel 
 
+        #print("ultra2 reading", ultra2.distance)
         # when checking sides, first record values of flags before checking 
 
         # obstacle_detected, and remember to change flag after moving away
+         # MAKE SURE THIS IS CONTINUOUSLY RUNNING, AND SETS FLAGS IN DRIVING ROBOT CLASS
         if ultra2.distance < 20:
             robot.obstacle2_deteced = True;
         
-        elif ultra1.distance < 20:
+        if ultra1.distance < 20:
             robot.obstacle1_detected = True;
         
-        elif ultra3.distance < 20:
+        if ultra3.distance < 20:
             robot.obstacle3_detected = True;
 
-        elif ultra1.distance < 20 and ultra3.distance < 20:
+        if ultra1.distance < 20 and ultra3.distance < 20:
             robot.obstacle1_deteced = True;
             robot.obstacle3_deteced = True;
             # commence wall following
         
-        else:
-            ("nothing")
+        '''else:
+            robot.obstacle1_detected = False;
+            robot.obstacle2_detected = False;
+            robot.obstacle3_detected = False;'''
+        
+        print(ultra2.distance)
 
 
     def userinput(): # main thread
         while True:
         # Grab a command
             command = input("Command ? ")
-
-            ultra_detects(robot)     # MAKE SURE THIS IS CONTINUOUSLY RUNNING, AND SETS FLAGS IN DRIVING ROBOT CLASS
 
             print(robot.obstacle2_detected)
         # Compare against possible commands.
@@ -131,8 +135,13 @@ if __name__ == "__main__":
     driving_thread = threading.Thread(target=robot.driving_loop,args=(motor,))
     driving_thread.start()
 
+    readings_thread = threading.Thread(target=ultra_detects, args=(robot,ultra1, ultra2, ultra3,))
+    readings_thread.start()
+
     try:
-        userinput()
+        var1 = False
+        while True:
+            ultra_detects(robot,ultra1,ultra2,ultra3)
 
 
     except BaseException as ex:
