@@ -24,13 +24,48 @@ if __name__ == "__main__":
     motor = Motor()
     robot = Robot()
     
+    obstacle1_deteced = False;
+    obstacle2_detected = False;
+    obstacle3_detected = False;
+
+
+    def ultra_detects():
+    # FIGURE OUT WHERE TO PUT THIS
+        # blocked intersection
+        # blocked street
+        # tunnel 
+
+        # when checking sides, first record values of flags before checking 
+
+        # obstacle_detected, and remember to change flag after moving away
+        if ultra2.distance < 20:
+            obstacle2_deteced = True;
+        
+        elif ultra1.distance < 20:
+            obstacle1_detected = True;
+        
+        elif ultra3.distance < 20:
+            obstacle3_detected = True;
+
+        elif ultra1.distance < 20 and ultra3.distance < 20:
+            obstacle1_deteced = True;
+            obstacle3_deteced = True;
+            # commence wall following
+        
+        else:
+            ("nothing")
+
+
     def userinput(): # main thread
         while True:
         # Grab a command
             command = input("Command ? ")
-        
+
+            ultra_detects()     # MAKE SURE THIS IS CONTINUOUSLY RUNNING, AND SETS FLAGS IN DRIVING ROBOT CLASS
+            
         # Compare against possible commands.
-        # start exploring
+
+            # start exploring
             if (command == 'explore'):
                 #set flags so the robot will choose the next intersection
                 # to explore the full map.
@@ -101,33 +136,6 @@ if __name__ == "__main__":
     try:
         userinput()
 
-        # blocked intersection
-        # blocked street
-        # tunnel 
-
-        # when checking sides, first record values of flags before checking
-
-        obstacle1_deteced = False;
-        obstacle2_detected = False;
-        obstacle3_detected = False; 
-
-        # obstacle_detected, and remember to change flag after moving away
-        if ultra2.distance < 20:
-            obstacle2_deteced = True;
-        
-        elif ultra1.distance < 20:
-            obstacle1_detected = True;
-        
-        elif ultra3.distance < 20:
-            obstacle3_detected = True;
-
-        elif ultra1.distance < 20 and ultra3.distance < 20:
-            obstacle1_deteced = True;
-            obstacle3_deteced = True;
-            # commence wall following
-        
-        else:
-            ("nothing")
 
     except BaseException as ex:
         print("Ending due to exception: %s" % repr(ex))
