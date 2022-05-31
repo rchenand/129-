@@ -23,6 +23,10 @@ acceptingCal = True
 sees = False
 turn_correct = False
 
+obstacle1_detected = False
+obstacle2_detected = False
+obstacle3_detected = False
+
 class Robot: 
     def __init__(self):    
     	# Initialize the connection to the pigpio daemon (GPIO interface).
@@ -34,6 +38,10 @@ class Robot:
         self.driving_stopflag = True
         self.keepdriving = False
         self.gotoint = False
+
+        self.obstacle1_detected = False
+        self.obstacle2_detected = False
+        self.obstacle3_detected = False
         self.x = 0
         self.y = 0
 
@@ -67,7 +75,7 @@ class Robot:
             elif left_val == 0 and mid_val == 0 and right_val == 1:
                 motor.set(power_const, power_const*sharp_turn)
             # slight right
-            elif left_val == 1 and mid_val ==1 and right_val == 0:
+            elif left_val == 1 and mid_val == 1 and right_val == 0:
                 motor.set(power_const*turn_const, power_const)
             # very right
             elif left_val == 1 and mid_val == 0 and right_val == 0:
@@ -90,6 +98,9 @@ class Robot:
 
             # seeing an intersection. We check the past values and not the
             #current ones so that the bot has extra time to move forward
+
+
+            # MAYBE CHECK ULTRASONIC READINGS HERE B4 DRIVING FORWARD
             elif past_left == 1 and past_right == 1 and past_mid == 1:
                 drivingConditions = False
                 motor.set(0.7,0.7)
@@ -208,11 +219,14 @@ class Robot:
 
     # map a grid
     def mapping(self,motor):
+
+        # CHECK FLAGS HERE
         while self.keepdriving == True: # keep running while exploring, stop if paused
-            global long, lat, heading, node_cntr, unx_cntr, side_status, check_sides
+            global long, lat, heading, node_cntr, unx_cntr, check_sides
             self.io.callback(constants.IR_M, pigpio.RISING_EDGE, self.found)
             stop_condition = True
-            while (stop_condition == True and self.keepdriving == True): 
+            while (stop_condition and self.keepdriving and self.obstacle2_detected == False):
+                #print("ultra1 reading", self.obstacle1_detected) 
                 unx_cntr = 0
                 self.drivebehavior(motor)
                 (curr_long, curr_lat) = self.shift(long,lat,heading)
@@ -225,9 +239,12 @@ class Robot:
                     self.intersections.append(Intersection(long,lat))
             
                     # get true or false in NWSE order 
+
+                    # store ultrasonic values
                     check_sides = self.lookaround(motor)
 
                     # if check_sides True --> UNEXPLORED, if false --> NOSTREET
+                    # included obstacle detected
                     self.intersection(long,lat).streets = [constants.UNEXPLORED if k else constants.NOSTREET for k in check_sides]
                     print(f"streets: {self.intersection(long,lat).streets}")
 
@@ -247,6 +264,7 @@ class Robot:
                 nint = self.intersection(long,lat)
                 nint.headingToTarget = (heading+2) % 4
 
+                # MAKE SURE HANDLING OBSTACLE DETECTIONS
                 if constants.UNEXPLORED in nint.streets:
                     print("there is an unexplored")
                     if nint.streets[heading] is constants.UNEXPLORED: # go forward
