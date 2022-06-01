@@ -23,9 +23,6 @@ acceptingCal = True
 sees = False
 turn_correct = False
 
-obstacle1_detected = False
-obstacle2_detected = False
-obstacle3_detected = False
 
 class Robot: 
     def __init__(self):    
