@@ -1,5 +1,5 @@
 '''Used for mapping, dijkstras, etc. Driving thread'''
-# this one works for blocked (turns around and knows it went to last intersection), tunnel (wall follows)
+
 # Imports
 from Motor import Motor
 from Ultrasonic import Ultrasonic
@@ -28,7 +28,7 @@ turned_around = False #if intersection is partway blocked
 in_tunnel = True #if not in tunnel / has line to follow
 tunnel_intersection = False # dont do lookaround if it's in a narrow tunnel
 
-
+drivingConditions = True #just drive, dont map
 
 
 class Robot: 
@@ -62,7 +62,6 @@ class Robot:
 
     # line following to intersection
     def drivebehavior(self,motor):
-      drivingConditions = True
       sharp_turn = 0.25
       turn_const = 0.5
       power_const = 0.8
@@ -70,7 +69,8 @@ class Robot:
       past_right = 0
       past_left = 0
 
-      global in_tunnel, turned_around, tunnel_intersection
+      global in_tunnel, turned_around, tunnel_intersection, drivingConditions
+      drivingConditions = True
 
       while drivingConditions:
         
@@ -115,6 +115,7 @@ class Robot:
                     elif past_mid == 1:
                         motor.set(power_const, -1 * power_const)
                     else:
+                        print("driving set to false")
                         drivingConditions = False
                         motor.set(0.7, 0.7)
                         time.sleep(0.4)
@@ -329,7 +330,8 @@ class Robot:
 
         # CHECK FLAGS HERE
         while self.keepdriving == True: # keep running while exploring, stop if paused
-            global long, lat, heading, node_cntr, unx_cntr, check_sides, turned_around
+            global long, lat, heading, node_cntr, unx_cntr, check_sides, turned_around, drivingConditions, in_tunnel
+
             self.io.callback(constants.IR_M, pigpio.RISING_EDGE, self.found)
             stop_condition = True
 
@@ -354,12 +356,31 @@ class Robot:
                     if self.intersection(long, lat) == None:
                         self.intersections.append(Intersection(long,lat))
                 
-                        # get true or false in NWSE order 
-
-                        check_sides = self.lookaround(motor)
-
+                        
                         #check ultrasonics for close blockades
                         self.ultra_detects()
+                        
+
+
+                        # store ultrasonic values 
+                        # nesw
+                        if tunnel_intersection:
+                            print("avoid turning")
+                            check_sides[heading] = True # in front
+                            check_sides[(heading + 1) % 4] = False #west
+                            check_sides[(heading + 2) % 4] = True #south
+                            check_sides[(heading + 3) % 4] = False #east
+                            
+                            # drives forward so it exits
+                            motor.set(0.8, 0.8)
+                            time.sleep(0.2)
+
+                            in_tunnel = True
+
+                        else: 
+                            print("runs lookaroudn")
+                            check_sides = self.lookaround(motor)
+                            #in_tunnel = True
 
 
                         # if check_sides True --> UNEXPLORED, if false --> NOSTREET
@@ -560,11 +581,3 @@ class Robot:
 
             else: # Pause at this intersection, if requested
                 motor.set(0,0)
-
-
-
-
-
-    	
-
-
