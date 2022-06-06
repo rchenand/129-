@@ -1,5 +1,9 @@
 '''Used for mapping, dijkstras, etc. Driving thread'''
 
+
+
+'''this one handles for blocked (turns around and knows it went to last intersection), tunnel (wall follows), tunnel w intersection'''
+
 # Imports
 from Motor import Motor
 from Ultrasonic import Ultrasonic
