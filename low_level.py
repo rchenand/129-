@@ -36,6 +36,7 @@ if __name__ == "__main__":
                 # to explore the full map.
                 print("Exploring without a target")
                 robot.keepdriving = True
+                robot.setreset = True
 
             # drive to target
             elif (command[:4] == 'goto'):
@@ -43,15 +44,49 @@ if __name__ == "__main__":
                 # use our dijkstras
                 
                 print("Driving to a target")
+
+                coords = command.split()[1:]
+                robot.x = int(coords[0])
+                robot.y = int(coords[1])
+                # positive x,y values
+                #if "-" not in command:
+                #    robot.x = int(command[5:6])
+                #    robot.y = int(command[7:8])
+                
+                # negative x,y values
+                #elif command[5] == "-" and command[8] == "-":
+                #    robot.x = int(command[5:7])
+                #    robot.y = int(command[8:10])
+
+                # negative x, positive y
+                #elif command[5] == "-":
+                #    robot.x = int(command[5:7])
+                #    robot.y = int(command[8:9])
+                
+                # positive x, negative y
+                #elif command[7] == "-": 
+                #    robot.x = int(command[5:6])
+                #    robot.y = int(command[7:9])
+
+                #else:
+                #    print("invalid . . . .")
+                    
                 robot.gotoint = True
-                robot.x = int(command[5:6])
-                robot.y = int(command[7:8])
+                robot.setreset = False
+                
+
+                
+
+
+                    
 
             # pause at next intersection
             elif (command == 'pause'):
                 print("Pausing at the next intersection")
                 robot.keepdriving = False
                 robot.driving_stopflag = False
+                robot.setreset = False
+                robot.setreset = False
                 print(robot.keepdriving)
                 motor.set(0,0)
 
@@ -72,6 +107,11 @@ if __name__ == "__main__":
                 print("Currently at", (robot.long, robot.lat))
             
             # add change for location
+
+            elif (command == 'reset'):
+                robot.setreset = True
+                robot.x = 0
+                robot.y = 0
 
             # quit
             elif (command == 'quit'):
@@ -103,7 +143,7 @@ if __name__ == "__main__":
 
     except BaseException as ex:
         print("Ending due to exception: %s" % repr(ex))
-        motor.set(0,0)
+    motor.set(0,0)
 
     # Wait for the threads to be done (re-joined)
     ultra1.stopcontinual()
