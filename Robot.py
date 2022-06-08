@@ -1,5 +1,4 @@
 '''Used for mapping, dijkstras, etc. Driving thread'''
-'''dijstras is working, turning is more consistent (rising and falling edge callbacks), and 180 turns are based on seeing line so more consistent
 
 # Imports
 from Motor import Motor
@@ -44,6 +43,9 @@ half_turn_time = 2000000
 
 dead_end_seen = False
 
+blocked_dijk = False
+
+
 
 
 class Robot: 
@@ -51,16 +53,18 @@ class Robot:
     	# Initialize the connection to the pigpio daemon (GPIO interface).
         self.io = pigpio.pi()
         if not self.io.connected:
-            print("Unable to connection to pigpio daemon!")
+            #print("Unable to connection to pigpio daemon!")
             sys.exit(0)
 
         self.driving_stopflag = True
         self.keepdriving = False
         self.gotoint = False
+        self.setreset = False
 
         self.obstacle1_detected = False
         self.obstacle2_detected = False
         self.obstacle3_detected = False
+
         self.x = 0
         self.y = 0
 
@@ -73,7 +77,8 @@ class Robot:
         self.lastintersection = None # Last intersection visited
         self.long = 0 # Current east/west coordinate
         self.lat = -1 # Current north/south coordinate
-      
+
+        self.running_dijk = False
 
     # line following to intersection
     def drivebehavior(self,motor):
@@ -84,10 +89,10 @@ class Robot:
       past_right = 0
       past_left = 0
 
-      global in_tunnel, turned_around, tunnel_intersection, drivingConditions
+      global in_tunnel, turned_around, tunnel_intersection, drivingConditions,blocked_dijk
       drivingConditions = True
 
-      print("enters drive behavior")
+      ##print("enters drive behavior")
 
       while drivingConditions:
         
@@ -119,7 +124,7 @@ class Robot:
                 self.ultra_detects(moving_dist_threshold) 
     
                 if(self.obstacle1_detected or self.obstacle3_detected):
-                    print("in tunnel set to true")
+                    #print("in tunnel set to true")
                     in_tunnel = True
                 else:                
                     # off line right
@@ -132,10 +137,10 @@ class Robot:
                     elif past_mid == 1:
                         motor.set(power_const, -1 * power_const)
                     else:
-                        print("driving set to false")
+                        #print("driving set to false")
                         drivingConditions = False
-                        motor.set(0.7, 0.7)
-                        time.sleep(0.4)
+                        #motor.set(0.7, 0.7)
+                        #time.sleep(0.4)
 
             # seeing an intersection. We check the past values and not the
             #current ones so that the bot has extra time to move forward
@@ -149,6 +154,8 @@ class Robot:
                 #driving foreward before checking intersection
                 motor.set(0.7,0.7)
                 time.sleep(0.4)
+                motor.set(0,0)
+                time.sleep(0.2)
 
             else:
                 drivingConditions = True
@@ -161,11 +168,10 @@ class Robot:
         # in tunnel
         else:
             #checks to see if it found line again / is past tunnel
-            if left_val == 1 or mid_val == 1 or right_val == 1:
-                print("AAAAAAAAAAAAAAAAAAAAAAAAAAA")
+            if left_val == 1 or mid_val == 1 or right_val == 1:                
                 #intersection inside tunnel
                 if left_val == 1 and mid_val == 1 and right_val == 1:
-                    print("set tunnel intersection bool to true")
+                    #print("set tunnel intersection bool to true")
                     tunnel_intersection = True
                     drivingConditions = False
                 else: 
@@ -175,7 +181,7 @@ class Robot:
                 self.ultra_detects(moving_dist_threshold)
                 if not self.obstacle1_detected and not self.obstacle3_detected:
                     in_tunnel = False
-                    print("out of tunnel")
+                    #print("out of tunnel")
             else:
                 # paste in code from that wall hugging
                 # may need to adjust distances so they're smaller (whatever width of tunnel is / 2)
@@ -190,8 +196,8 @@ class Robot:
 
                 e = left_dist - 10.7
                 u = 0.1 * e
-                #print("u:", u)
-                #print("dist", self.ultra1.distance)
+                ##print("u:", u)
+                ##print("dist", self.ultra1.distance)
                 
 
                 PWM_left = max(0.5, min(0.9, 0.7 - u))
@@ -205,6 +211,11 @@ class Robot:
         # turns aroud
         self.ultra_detects(moving_dist_threshold)
         if self.obstacle2_detected:
+            if self.running_dijk:
+                #print("saw while running dijk")
+                blocked_dijk = True
+            
+            #print("saw front")
             self.turn(motor, 2) 
             turned_around = True
 
@@ -226,27 +237,27 @@ class Robot:
             sees = False
             acceptingCal = True
             start_time = self.io.get_current_tick()
-            #print("start time: ", start_time)
+            ##print("start time: ", start_time)
             #last_saw_black = self.io.get_current_tick() * 100000000
             motor.set(-0.8, 0.8)
             time.sleep(0.2)
 
-            #print("at street :", x)
+            ##print("at street :", x)
             # exits loop if IR sensor gets reading --> callback: sees --> T
             while sees == False: 
                 # turn 100 deg if line not found, turn less if two lines not 
                 #                                       found twice
 
-                #print("delta: ", self.io.get_current_tick() - last_saw_black)
+                ##print("delta: ", self.io.get_current_tick() - last_saw_black)
                 delta = self.io.get_current_tick() - last_saw_black
                 delta2 = self.io.get_current_tick() - start_time
 
                 if (delta > seen_threshold):
-                    #print("sees line at time: ", delta)
+                    ##print("sees line at time: ", delta)
                     sees = True
                     break
 
-                waittime = 650000 if not turn_correct else 550000
+                waittime = 630000 if not turn_correct else 550000
                 if (delta2) > waittime:
                     sees = False
                     break #sees = True
@@ -263,7 +274,7 @@ class Robot:
         acceptingCal = False
         checks = checks[0:4]
         list_in_nwse_order = checks[-heading:] + checks[:-heading]
-        print(f"list: {list_in_nwse_order}")
+        #print(f"list: {list_in_nwse_order}")
         return list_in_nwse_order
 
     # callback function, sets boolean sees
@@ -271,18 +282,18 @@ class Robot:
         
         global sees, acceptingCal, found_counter, last_saw_black
         
-        #print("saw black")
+        ##print("saw black")
 
         if acceptingCal == True:
             #sees = True
             last_saw_black = tick
-            #print("last saw black: ", last_saw_black)
+            ##print("last saw black: ", last_saw_black)
 
 
     def turn_bool(self, gpio, level, tick):
         global turn_sees, acceptingCal
         
-        #print("saw black")
+        ##print("saw black")
 
         if acceptingCal == True:           
             turn_sees = True
@@ -291,12 +302,12 @@ class Robot:
     def leftblack(self,gpio, level, tick):
         global sees, acceptingCal, found_counter, last_saw_black, black_tick_mult
         
-        #print("found ", found_counter)
+        ##print("found ", found_counter)
 
         if acceptingCal == True:
             #sees = True
             last_saw_black = tick+1000000000
-            #print("left black at", tick)
+            ##print("left black at", tick)
             found_counter = tick
             #4115721094
            
@@ -336,8 +347,8 @@ class Robot:
             self.obstacle3_detected = False
 
             #if both 1 and 3 are true, start wall following
-        #print(self.ultra2.distance)
-        #print(self.obstacle2_detected)
+        ##print(self.ultra2.distance)
+        ##print(self.obstacle2_detected)
 
 
     # New longitude/latitude value after a step in the given heading.
@@ -360,16 +371,18 @@ class Robot:
         global turn_sees
         turn_sees = False
         if mag == 1: # turn left
-            motor.set(-0.6,0.6)
+            motor.set(-0.7,0.7)
             time.sleep(0.1)
             while turn_sees == False:
-                #print("turning left!")
-                motor.set(-0.6, 0.6)
+                ##print("turning left!")
+                motor.set(-0.7, 0.7)
                 time.sleep(0.05)
         elif mag == 3: # turn right
-            motor.set(0.6,-0.6)
-            time.sleep(0.1)
-            while turn_sees == False:
+            #print("does this")
+            motor.set(0.8,-0.8)
+            time.sleep(0.3)
+            while self.io.read(constants.IR_L) == 0:
+            #while turn_sees == False:
                 #print("turning right!")
                 motor.set(0.6, -0.6)
                 time.sleep(0.05)
@@ -378,25 +391,20 @@ class Robot:
 
         elif mag == 2: # turn back, 180 deg
            # dead end, turn until catch line behind
-            '''motor.set(-0.8,0.8)
-            time.sleep(1.1)
-            start_time = self.io.get_current_tick()
-            while turn_sees == False and self.io.get_current_tick()-start_time < half_turn_time: 
-                #print("turnin")           
-                motor.set(-0.8, 0.8)
-                time.sleep(0.05)'''
+
             if self.intersection(long,lat).streets[(heading+1) % 4] == constants.UNEXPLORED or self.intersection(long,lat).streets[(heading+1) % 4] == constants.CONNECTED:
                 self.turn(motor,1)
-                motor.set(-0.8,0.8)
-                time.sleep(0.1)
-                while turn_sees == False:
-                #print("turning left!")
-                    motor.set(-0.8, 0.8)
-                    time.sleep(0.05)
+                self.turn(motor,1)
+                #motor.set(-0.8, 0.8)
+                #time.sleep(0.1)
+                #while turn_sees == False:
+                ##print("turning left!")
+                #    motor.set(-0.8, 0.8)
+                #    time.sleep(0.05)
             else:
                 self.turn(motor,1)
         else:
-            #print("magnitude is not in 0,1 or 3")
+            ##print("magnitude is not in 0,1 or 3")
             print(f"Mag is {mag}")
             
       # Find the intersection
@@ -427,9 +435,10 @@ class Robot:
             while (stop_condition and self.keepdriving and not self.obstacle2_detected):
 
 
-                #print("ultra1 reading", self.obstacle1_detected) 
+                ##print("ultra1 reading", self.obstacle1_detected) 
                 unx_cntr = 0
                 self.drivebehavior(motor)
+                print('heading:', heading)
 
                 #leaves drive behavior bc it saw intersection
 
@@ -439,7 +448,7 @@ class Robot:
                     (curr_long, curr_lat) = self.shift(long,lat,heading)
                     long = curr_long
                     lat = curr_lat
-                    print(f"Intersection Number: {node_cntr}")
+                    #print(f"Intersection Number: {node_cntr}")
                     node_cntr = node_cntr + 1
                     # new intersection
                     if self.intersection(long, lat) == None:
@@ -455,7 +464,7 @@ class Robot:
                         # store ultrasonic values 
                         # nesw
                         if tunnel_intersection:
-                            print("avoid turning")
+                            #print("avoid turning")
                             check_sides[heading] = True # in front
                             check_sides[(heading + 1) % 4] = False #west
                             check_sides[(heading + 2) % 4] = True #south
@@ -468,7 +477,7 @@ class Robot:
                             in_tunnel = True
 
                         else: 
-                            #print("runs lookaroudn")
+                            ##print("runs lookaroudn")
                             check_sides = self.lookaround(motor)
                             #in_tunnel = True
 
@@ -478,33 +487,33 @@ class Robot:
 
                         self.intersection(long,lat).streets = [constants.UNEXPLORED if k else constants.NOSTREET for k in check_sides]
 
-                       # print("temp left",temp_seesleft)   
-                        print("temp front",temp_seesfront)   
-                      #  print("temp left",temp_seesright)                        
+                       # #print("temp left",temp_seesleft)   
+                        #print("temp front",temp_seesfront)   
+                      #  #print("temp left",temp_seesright)                        
 
                         if(temp_seesleft): # on the left; heading -1
                             dir = (heading - 1) % 4
-                            print("saw left")
+                            #print("saw left")
                             self.intersection(long, lat).streets[dir] = BLOCKED
                     
                         if(temp_seesfront): # in front
                             dir = heading
-                            print("saw front")
+                            #print("saw front")
                             self.intersection(long, lat).streets[dir] = BLOCKED
 
                         if(temp_seesright): # on the right
                             dir = (heading + 1) % 4
-                            print("saw right")
+                            #print("saw right")
                             self.intersection(long, lat).streets[dir] = BLOCKED
 
                     # it came from this place, so it's connected
                     else:
                         print("been here before")
-                        print(f"streets: {self.intersection(long,lat).streets}")
+                        #print(f"streets: {self.intersection(long,lat).streets}")
                     
                     # update previous intersection as connected
                     if self.lastintersection != None:
-                        #print("adding back and last back as connected")
+                        ##print("adding back and last back as connected")
                         # sets current intersection back to connected
                         self.intersection(long,lat).streets[(heading+2) % 4] = constants.CONNECTED
                         self.intersection(self.lastintersection[0],self.lastintersection[1]).streets[heading] = constants.CONNECTED
@@ -515,20 +524,20 @@ class Robot:
 
                     # MAKE SURE HANDLING OBSTACLE DETECTIONS
                     if constants.UNEXPLORED in nint.streets:
-                        print("there is an unexplored")
+                        #print("there is an unexplored")
                         if nint.streets[heading] is constants.UNEXPLORED: # go forward                            
                             self.turn(motor, 0)
                         elif nint.streets[(heading + 1) % 4] is constants.UNEXPLORED: # turn L                            
-                            print(nint.streets[heading])
+                            #print(nint.streets[heading])
                             self.turn(motor,1)                            
                             heading = (heading + 1) % 4
                         elif nint.streets[(heading + 3) % 4] is constants.UNEXPLORED: # turn R
                             self.turn(motor,3)
                             heading = (heading + 3) % 4
                     else:
-                        print("there is a connected")
+                        #print("there is a connected")
                         connected_streets = []
-                        #print(f"streets: {self.intersection(long,lat).streets}")
+                        ##print(f"streets: {self.intersection(long,lat).streets}")
                         nint = self.intersection(long, lat)
                         for y in range(len(nint.streets)):
                             if nint.streets[y] is constants.CONNECTED:
@@ -537,7 +546,7 @@ class Robot:
                                         connected_streets.append(y)
                                 else:
                                     connected_streets.append(y)
-                        print("this many conneced streets:", len(connected_streets))
+                        #print("this many conneced streets:", len(connected_streets))
                         choice2 = random.choice(connected_streets)
                         self.turn(motor,(choice2 - heading) % 4)
                         heading = choice2
@@ -547,33 +556,33 @@ class Robot:
                     turned_around = False
                     self.intersection(long, lat).streets[heading] = BLOCKED #unsure of this is right 
                     heading = (heading + 2) % 4
-                    print("due to block, was here just now")
+                    #print("due to block, was here just now")
 
                     #AHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH
                     if constants.UNEXPLORED in nint.streets:
-                        print("there is an unexplored")
+                        #print("there is an unexplored")
                         if nint.streets[heading] is constants.UNEXPLORED: # go forward
                             self.turn(motor, 0)
                         elif nint.streets[(heading + 1) % 4] is constants.UNEXPLORED: # turn L
-                            print("turn L")
-                            print(nint.streets[heading])
+                            #print("turn L")
+                            #print(nint.streets[heading])
                             self.turn(motor,1)
                             heading = (heading + 1) % 4
                         elif nint.streets[(heading + 3) % 4] is constants.UNEXPLORED: # turn R
-                            print("turn R")
+                            #print("turn R")
                             self.turn(motor,3)
                             heading = (heading + 3) % 4
                     else:
-                        print("there is a connected")
+                        #print("there is a connected")
                         connected_streets = []
                         for y in range(len(nint.streets)):
                             if nint.streets[y] is constants.CONNECTED:
-                                #print("CONNECTED")
+                                ##print("CONNECTED")
                                 if (y != (heading + 2) % 4):
                                     connected_streets.append(y)
                         choice2 = constants.random.choice(connected_streets)
                         
-                        print((choice2 - heading) % 4) # should print 2
+                        #print((choice2 - heading) % 4) # should #print 2
                         self.turn(motor,(choice2 - heading) % 4)
                         heading = choice2
                     #AHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH
@@ -587,27 +596,33 @@ class Robot:
                 
                 # update after  first
                 self.lastintersection = [long,lat]
-                print(self.lastintersection)
+                print([x for x in self.intersections])
 
                 self.ultra_detects(moving_dist_threshold)
 
                 if unx_cntr ==0: # if everything is explored, exit loop
                     stop_condition = False
-                    print("EVERYTHING MAPPED") 
+                    #print("EVERYTHING MAPPED") 
 
-        print("exited mapping")
-        print("heading after mapping",heading)
+        #print("exited mapping")
+        #print("heading after mapping",heading)
         motor.set(0,0)
 
     # moving to a target
     def dijkstras(self,motor):
-        global long, lat
-        print("running dijkstras")
+        print('running djikstras!')
+        global long, lat, blocked_dijk
+        #print("running dijkstras")
         global heading
+
+        potentially_unreachable = False
+        blocked_dijk = False
+        unreachable_counter = 0
+
         while True:
             # store where bot currently is
             curr_intersection =(long, lat)
-            print("curr intersection", curr_intersection)
+            #print("curr intersection", curr_intersection)
             time.sleep(1)
 
             # clear all headingtoTargets
@@ -616,24 +631,31 @@ class Robot:
             
             # target intersection is new goal and added to on_deck
             goal = (self.x,self.y)
-            on_deck = [(self.x,self.y)] # FIFO list
+            on_deck = [goal] # FIFO list
             processed = []
-            print("on_deck", on_deck)
+            #print("on_deck", on_deck)
 
             # list of all the (long, lat)
             int_coords = []
             for y in self.intersections:
                 int_coords.append((y.long, y.lat))
             
-            print("intersections",int_coords)
+            #print("intersections",int_coords)
 
             while(curr_intersection not in processed):
-                print("running dij")
-                #print("hello")
+                print(on_deck)
                 temp_target = on_deck[0]
-                print("temp_target", temp_target)
+                #print("temp_target", temp_target)
                 on_deck = on_deck[1:]
+                old_len = len(processed)
                 processed.append(temp_target)
+
+                if len(processed) == old_len:
+                    unreachable_counter += 1
+
+                if unreachable_counter == 20:
+                    #print("maxed out on unreachable")
+                    potentially_unreachable = True
                 
                  # get 4 intersections around it
                 curr_north = (temp_target[0],temp_target[1]+1)
@@ -641,54 +663,79 @@ class Robot:
                 curr_south = (temp_target[0],temp_target[1]-1)
                 curr_east = (temp_target[0] + 1,temp_target[1])
 
-                # check if any of these 4 are valid intersections
-                if (curr_north) in int_coords:
-                    #print("exists")
-                    if self.intersection(curr_north[0],curr_north[1]).headingToTarget == None:
-                        print('add north')
-                        self.intersection(curr_north[0],curr_north[1]).headingToTarget = 2
-                        on_deck.append(curr_north)
-                
-                if (curr_west) in int_coords:
-                    #print("exists")
-                    if self.intersection(curr_west[0],curr_west[1]).headingToTarget == None:
-                        print('add west')
-                        self.intersection(curr_west[0],curr_west[1]).headingToTarget = 3
-                        on_deck.append(curr_west)
+                options = [curr_north, curr_west, curr_south, curr_east]
 
-                if (curr_south) in int_coords:
-                    #print("exists")
-                    if self.intersection(curr_south[0],curr_south[1]).headingToTarget == None:
-                        print('add south')
-                        self.intersection(curr_south[0],curr_south[1]).headingToTarget = 0
-                        on_deck.append(curr_south)
+                for k in range(len(options)):
+                    if options[k] in int_coords:
+                        int_chk = self.intersection(options[k][0], options[k][1])
+                        print(options[k], int_chk.streets)
+                        if int_chk.headingToTarget == None and int_chk.streets[(k+2)%4] == CONNECTED:
+                            int_chk.headingToTarget = (k+2)%4
+                            on_deck.append(options[k])
 
-                if (curr_east) in int_coords:
-                    #print("exists")
-                    if self.intersection(curr_east[0],curr_east[1]).headingToTarget == None:
-                        print('add east')
-                        self.intersection(curr_east[0],curr_east[1]).headingToTarget = 1
-                        on_deck.append(curr_east)
+            self.running_dijk = True
 
-            print("going shortest path")
-            print("heading", heading)       
-            while (long,lat)!= goal:
-                print("enters here")
+            while (long,lat)!= goal and not blocked_dijk and not potentially_unreachable:
+                #print("enters here")
+
                 cint = self.intersection(long,lat)
                 self.turn(motor,(cint.headingToTarget - heading) % 4)
                 self.drivebehavior(motor)
-                heading = (cint.headingToTarget) % 4
-                (long, lat) = self.shift(long,lat,heading) 
+                print("int going from", cint)
+                print('heading', heading, 'newheading', cint.headingToTarget)
 
-            print("exits dijkstra")
+                if(not blocked_dijk):
+                    heading = cint.headingToTarget
+                    (long, lat) = self.shift(long,lat,heading) 
+                else:
+                    #print("saw a dij block")
+                    heading = cint.headingToTarget
+                    self.intersection(long, lat).streets[heading] = BLOCKED
+                    (nlong, nlat) = self.shift(long,lat,heading)
+                    self.intersection(nlong, nlat).streets[(heading+2)%4] = BLOCKED
             
-            motor.set(0,0)
+                    heading = (heading + 2) % 4
+                    #print("heading val:", heading)
+                    #turned_around = True 
+                    print(long, lat)
+                    self.dijkstras(motor)
+                    return
+                    
+
+            #print("exits dijkstra")
+            
+        #    if blocked_dijk:
+        #        #a street is blocked, hasn't tried all the combinations 
+         #       #print("recalls dijk")
+          #      self.dijkstras(motor)
+            #    return
+            if potentially_unreachable: 
+                #print("potentially unreachable")
+                #tried all the options, there is no way the intersection is reachable unless blockades have moved
+
+                # sets all blocked intersections to connected
+                for i in self.intersections:
+                    for s in i.streets:
+                        if s == BLOCKED:
+                            s = CONNECTED
+
+                # rerun dijkstras without the blocks
+                self.dijkstras(motor)
+            else:
+                motor.set(0,0)
+                self.running_dijk = False
+                self.gotoint = False
+                break
+
+        self.gotoint = False
+
 
     # Driving thread: drive from intersection to intersection
     def driving_stop(self):
         self.driving_stopflag = True
     
     def driving_loop(self,motor):
+        global lat, long
         self.driving_stopflag = False
         while not self.driving_stopflag:
             if self.keepdriving: #keep mapping
@@ -696,6 +743,10 @@ class Robot:
             
             elif self.gotoint: # go to an intersection
                 self.dijkstras(motor)
+            
+            elif self.setreset:
+                long = self.x
+                lat = self.y
 
             else: # Pause at this intersection, if requested
                 motor.set(0,0)
